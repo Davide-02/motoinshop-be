@@ -1,7 +1,41 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 const router = express.Router();
 const User = require("../models/User");
+
+// Configurazione upload avatar
+const avatarDir = path.join(__dirname, "../../uploads/avatars");
+if (!fs.existsSync(avatarDir)) {
+  fs.mkdirSync(avatarDir, { recursive: true });
+}
+
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, avatarDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `avatar-${req.user._id}${ext}`);
+  },
+});
+
+const avatarFilter = (req, file, cb) => {
+  const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Solo immagini (JPEG, PNG, GIF, WebP) sono permesse"), false);
+  }
+};
+
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  fileFilter: avatarFilter,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+});
 
 const JWT_SECRET = process.env.JWT_SECRET || "motoin_secret_key_change_in_production";
 const JWT_EXPIRES_IN = "24h";
@@ -204,6 +238,63 @@ router.put("/me", authMiddleware, async (req, res) => {
     res.json({ user });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// PUT /api/auth/avatar - Upload avatar
+router.put("/avatar", authMiddleware, uploadAvatar.single("avatar"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Nessun file caricato" });
+    }
+
+    // Elimina vecchio avatar se diverso
+    const user = await User.findById(req.user._id);
+    if (user.avatar) {
+      const oldAvatarPath = path.join(avatarDir, path.basename(user.avatar));
+      if (fs.existsSync(oldAvatarPath) && oldAvatarPath !== path.join(avatarDir, req.file.filename)) {
+        fs.unlinkSync(oldAvatarPath);
+      }
+    }
+
+    // Salva nuovo avatar (path relativo, il frontend aggiunge /api/be)
+    const avatarUrl = `/auth/avatars/${req.file.filename}`;
+    user.avatar = avatarUrl;
+    await user.save();
+
+    res.json({ avatar: avatarUrl, user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/auth/avatar - Rimuovi avatar
+router.delete("/avatar", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    
+    if (user.avatar) {
+      const avatarPath = path.join(avatarDir, path.basename(user.avatar));
+      if (fs.existsSync(avatarPath)) {
+        fs.unlinkSync(avatarPath);
+      }
+      user.avatar = null;
+      await user.save();
+    }
+
+    res.json({ message: "Avatar rimosso", user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/auth/avatars/:filename - Serve avatar
+router.get("/avatars/:filename", (req, res) => {
+  const filePath = path.join(avatarDir, req.params.filename);
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ error: "Avatar non trovato" });
   }
 });
 

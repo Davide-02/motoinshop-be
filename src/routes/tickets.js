@@ -275,9 +275,16 @@ router.post("/:id/messages", authMiddleware, upload.array("attachments", 5), asy
       attachments,
     });
 
-    // Se admin risponde, notifica l'utente
+    // Se admin risponde, notifica l'utente e prende in carico automaticamente se non assegnato
     if (req.user.role === "admin") {
       ticket.unreadByUser = true;
+      
+      // Se il ticket è ancora "aperto", l'admin che risponde lo prende in carico automaticamente
+      if (ticket.status === "aperto") {
+        ticket.status = "in_lavorazione";
+        ticket.assignedTo = req.user._id;
+        ticket.assignedToName = `${req.user.nome || ""} ${req.user.cognome || ""}`.trim() || req.user.email;
+      }
     }
 
     await ticket.save();
