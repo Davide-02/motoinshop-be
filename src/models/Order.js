@@ -53,6 +53,12 @@ const orderSchema = new mongoose.Schema(
     notes: String,
     adminNotes: String,
     
+    tracking: {
+      carrier: String,
+      trackingNumber: String,
+      trackingUrl: String,
+    },
+    
     shippedAt: Date,
     deliveredAt: Date,
   },
