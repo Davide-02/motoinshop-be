@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const mongoose = require("mongoose");
+const cors = require("cors");
 const motoRoutes = require("./routes/moto");
 const productRoutes = require("./routes/products");
 const authRoutes = require("./routes/auth");
@@ -10,6 +11,15 @@ const ticketRoutes = require("./routes/tickets");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
