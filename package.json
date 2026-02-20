@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "seed": "node src/seed/seed.js",
     "seed-json": "node src/seed/import_motoFromJSON.js",
-    "import": "node src/seed/import.js"
+    "import": "node src/seed/import.js",
+    "download-images": "node src/seed/downloadImages.js"
   },
   "keywords": [],
   "author": "",
