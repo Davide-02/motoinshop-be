@@ -93,4 +93,106 @@ router.get("/ricerca", async (req, res) => {
   }
 });
 
+// ==================== CRUD ADMIN ====================
+
+// 7️⃣ GET /api/moto — lista moto con paginazione (admin)
+router.get("/moto", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const perPage = Math.min(parseInt(req.query.per_page, 10) || 25, 100);
+    const skip = (page - 1) * perPage;
+
+    const query = {};
+    if (req.query.marca) query.marca = req.query.marca;
+    if (req.query.search) {
+      query.modello = { $regex: req.query.search, $options: "i" };
+    }
+
+    const [data, total] = await Promise.all([
+      Moto.find(query).sort({ marca: 1, modello: 1 }).skip(skip).limit(perPage).lean(),
+      Moto.countDocuments(query),
+    ]);
+
+    res.json({
+      data,
+      pagination: {
+        page,
+        perPage,
+        total,
+        totalPages: Math.ceil(total / perPage),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 8️⃣ GET /api/moto/:id — singola moto
+router.get("/moto/:id", async (req, res) => {
+  try {
+    const moto = await Moto.findById(req.params.id);
+    if (!moto) {
+      return res.status(404).json({ error: "Moto non trovata" });
+    }
+    res.json({ data: moto });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 9️⃣ POST /api/moto — crea moto
+router.post("/moto", async (req, res) => {
+  try {
+    const { marca, modello, cilindrata, anni, categoria, paese } = req.body;
+    
+    if (!marca || !modello) {
+      return res.status(400).json({ error: "Marca e Modello sono obbligatori" });
+    }
+
+    const moto = new Moto({
+      marca,
+      modello,
+      cilindrata: cilindrata || 0,
+      anni: anni || [],
+      categoria: categoria || "Unknown",
+      paese: paese || "Unknown",
+    });
+
+    await moto.save();
+    res.status(201).json({ data: moto });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// 🔟 PUT /api/moto/:id — aggiorna moto
+router.put("/moto/:id", async (req, res) => {
+  try {
+    const moto = await Moto.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!moto) {
+      return res.status(404).json({ error: "Moto non trovata" });
+    }
+    res.json({ data: moto });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// 1️⃣1️⃣ DELETE /api/moto/:id — elimina moto
+router.delete("/moto/:id", async (req, res) => {
+  try {
+    const moto = await Moto.findByIdAndDelete(req.params.id);
+    if (!moto) {
+      return res.status(404).json({ error: "Moto non trovata" });
+    }
+    res.json({ success: true, message: "Moto eliminata" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

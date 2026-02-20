@@ -20,7 +20,7 @@ app.use("/api/images", express.static(path.join(__dirname, "../uploads/products"
   lastModified: true,
 }));
 
-// API moto (filtri marca/modello/anno)
+// API moto (filtri marca/modello/anno e CRUD)
 app.use("/api", motoRoutes);
 
 // API products (CRUD prodotti)
