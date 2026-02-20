@@ -13,6 +13,18 @@ const addressSchema = new mongoose.Schema({
   paese: { type: String, default: "Italia", trim: true },
 }, { _id: false });
 
+const paymentMethodSchema = new mongoose.Schema({
+  type: { type: String, enum: ["card", "paypal", "bank"], required: true },
+  name: { type: String, trim: true },
+  lastFour: { type: String, trim: true },
+  expiryMonth: { type: String, trim: true },
+  expiryYear: { type: String, trim: true },
+  cardBrand: { type: String, trim: true },
+  email: { type: String, trim: true },
+  iban: { type: String, trim: true },
+  isDefault: { type: Boolean, default: false },
+});
+
 const userSchema = new mongoose.Schema(
   {
     email: {
@@ -69,6 +81,7 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    paymentMethods: [paymentMethodSchema],
     isActive: {
       type: Boolean,
       default: true,

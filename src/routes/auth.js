@@ -170,12 +170,30 @@ router.get("/me", authMiddleware, async (req, res) => {
 // PUT /api/auth/me - Aggiorna profilo
 router.put("/me", authMiddleware, async (req, res) => {
   try {
-    const { name, phone, address } = req.body;
+    const {
+      nome,
+      cognome,
+      phone,
+      codiceFiscale,
+      partitaIva,
+      pec,
+      codiceDestinatario,
+      billingAddress,
+      shippingAddress,
+      useShippingAsBilling,
+    } = req.body;
 
     const updates = {};
-    if (name) updates.name = name;
-    if (phone) updates.phone = phone;
-    if (address) updates.address = address;
+    if (nome !== undefined) updates.nome = nome;
+    if (cognome !== undefined) updates.cognome = cognome;
+    if (phone !== undefined) updates.phone = phone;
+    if (codiceFiscale !== undefined) updates.codiceFiscale = codiceFiscale;
+    if (partitaIva !== undefined) updates.partitaIva = partitaIva;
+    if (pec !== undefined) updates.pec = pec;
+    if (codiceDestinatario !== undefined) updates.codiceDestinatario = codiceDestinatario;
+    if (billingAddress !== undefined) updates.billingAddress = billingAddress;
+    if (shippingAddress !== undefined) updates.shippingAddress = shippingAddress;
+    if (useShippingAsBilling !== undefined) updates.useShippingAsBilling = useShippingAsBilling;
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
@@ -186,6 +204,113 @@ router.put("/me", authMiddleware, async (req, res) => {
     res.json({ user });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// GET /api/auth/payment-methods - Lista metodi di pagamento
+router.get("/payment-methods", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    res.json({ data: user.paymentMethods || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/auth/payment-methods - Aggiungi metodo di pagamento
+router.post("/payment-methods", authMiddleware, async (req, res) => {
+  try {
+    const { type, name, lastFour, expiryMonth, expiryYear, cardBrand, email, iban, isDefault } = req.body;
+
+    if (!type) {
+      return res.status(400).json({ error: "Tipo metodo pagamento obbligatorio" });
+    }
+
+    const user = await User.findById(req.user._id);
+    
+    // Se è default, rimuovi default dagli altri
+    if (isDefault) {
+      user.paymentMethods.forEach(pm => pm.isDefault = false);
+    }
+
+    // Se è il primo metodo, rendilo default
+    const makeDefault = isDefault || user.paymentMethods.length === 0;
+
+    user.paymentMethods.push({
+      type,
+      name,
+      lastFour,
+      expiryMonth,
+      expiryYear,
+      cardBrand,
+      email,
+      iban,
+      isDefault: makeDefault,
+    });
+
+    await user.save();
+    res.status(201).json({ data: user.paymentMethods });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/auth/payment-methods/:id - Modifica metodo di pagamento
+router.put("/payment-methods/:id", authMiddleware, async (req, res) => {
+  try {
+    const { type, name, lastFour, expiryMonth, expiryYear, cardBrand, email, iban, isDefault } = req.body;
+
+    const user = await User.findById(req.user._id);
+    const method = user.paymentMethods.id(req.params.id);
+
+    if (!method) {
+      return res.status(404).json({ error: "Metodo di pagamento non trovato" });
+    }
+
+    // Se diventa default, rimuovi default dagli altri
+    if (isDefault) {
+      user.paymentMethods.forEach(pm => pm.isDefault = false);
+    }
+
+    if (type) method.type = type;
+    if (name !== undefined) method.name = name;
+    if (lastFour !== undefined) method.lastFour = lastFour;
+    if (expiryMonth !== undefined) method.expiryMonth = expiryMonth;
+    if (expiryYear !== undefined) method.expiryYear = expiryYear;
+    if (cardBrand !== undefined) method.cardBrand = cardBrand;
+    if (email !== undefined) method.email = email;
+    if (iban !== undefined) method.iban = iban;
+    if (isDefault !== undefined) method.isDefault = isDefault;
+
+    await user.save();
+    res.json({ data: user.paymentMethods });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/auth/payment-methods/:id - Elimina metodo di pagamento
+router.delete("/payment-methods/:id", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const method = user.paymentMethods.id(req.params.id);
+
+    if (!method) {
+      return res.status(404).json({ error: "Metodo di pagamento non trovato" });
+    }
+
+    const wasDefault = method.isDefault;
+    user.paymentMethods.pull(req.params.id);
+
+    // Se era default e ci sono altri metodi, rendi default il primo
+    if (wasDefault && user.paymentMethods.length > 0) {
+      user.paymentMethods[0].isDefault = true;
+    }
+
+    await user.save();
+    res.json({ message: "Metodo di pagamento eliminato", data: user.paymentMethods });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
