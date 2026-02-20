@@ -219,6 +219,29 @@ router.get("/users", authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/auth/users/stats - Statistiche utenti (solo admin)
+router.get("/users/stats", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const [total, customers, admins, active, inactive] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ role: "customer" }),
+      User.countDocuments({ role: "admin" }),
+      User.countDocuments({ isActive: true }),
+      User.countDocuments({ isActive: false }),
+    ]);
+
+    res.json({
+      total,
+      customers,
+      admins,
+      active,
+      inactive,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Esporta middleware per uso in altre route
 router.authMiddleware = authMiddleware;
 router.adminMiddleware = adminMiddleware;

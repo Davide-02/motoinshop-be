@@ -108,6 +108,25 @@ router.get("/search", async (req, res) => {
   }
 });
 
+// GET /api/products/stats — statistiche prodotti
+router.get("/stats", async (req, res) => {
+  try {
+    const [total, inStock, outOfStock] = await Promise.all([
+      Product.countDocuments(),
+      Product.countDocuments({ inStock: true }),
+      Product.countDocuments({ inStock: false }),
+    ]);
+
+    res.json({
+      total,
+      inStock,
+      outOfStock,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/products/:id — singolo prodotto
 router.get("/:id", async (req, res) => {
   try {
