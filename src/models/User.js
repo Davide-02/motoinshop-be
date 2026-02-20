@@ -1,6 +1,18 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
+const addressSchema = new mongoose.Schema({
+  nome: { type: String, trim: true },
+  cognome: { type: String, trim: true },
+  azienda: { type: String, trim: true },
+  via: { type: String, trim: true },
+  civico: { type: String, trim: true },
+  cap: { type: String, trim: true },
+  citta: { type: String, trim: true },
+  provincia: { type: String, trim: true },
+  paese: { type: String, default: "Italia", trim: true },
+}, { _id: false });
+
 const userSchema = new mongoose.Schema(
   {
     email: {
@@ -15,9 +27,12 @@ const userSchema = new mongoose.Schema(
       required: true,
       minlength: 6,
     },
-    name: {
+    nome: {
       type: String,
-      required: true,
+      trim: true,
+    },
+    cognome: {
+      type: String,
       trim: true,
     },
     role: {
@@ -29,12 +44,30 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    address: {
-      street: String,
-      city: String,
-      province: String,
-      postalCode: String,
-      country: { type: String, default: "Italia" },
+    codiceFiscale: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
+    partitaIva: {
+      type: String,
+      trim: true,
+    },
+    pec: {
+      type: String,
+      lowercase: true,
+      trim: true,
+    },
+    codiceDestinatario: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
+    billingAddress: addressSchema,
+    shippingAddress: addressSchema,
+    useShippingAsBilling: {
+      type: Boolean,
+      default: true,
     },
     isActive: {
       type: Boolean,

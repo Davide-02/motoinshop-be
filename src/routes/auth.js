@@ -52,7 +52,20 @@ const adminMiddleware = (req, res, next) => {
 // POST /api/auth/register - Registrazione
 router.post("/register", async (req, res) => {
   try {
-    const { email, password, name, phone } = req.body;
+    const {
+      email,
+      password,
+      nome,
+      cognome,
+      phone,
+      codiceFiscale,
+      partitaIva,
+      pec,
+      codiceDestinatario,
+      billingAddress,
+      shippingAddress,
+      useShippingAsBilling,
+    } = req.body;
 
     // Verifica se l'email esiste già
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -64,8 +77,16 @@ router.post("/register", async (req, res) => {
     const user = new User({
       email,
       password,
-      name,
+      nome,
+      cognome,
       phone,
+      codiceFiscale,
+      partitaIva,
+      pec,
+      codiceDestinatario,
+      billingAddress,
+      shippingAddress,
+      useShippingAsBilling,
       role: "customer",
     });
 
@@ -237,6 +258,159 @@ router.get("/users/stats", authMiddleware, adminMiddleware, async (req, res) => 
       active,
       inactive,
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/auth/users/:id - Singolo utente (solo admin)
+router.get("/users/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: "Utente non trovato" });
+    }
+    res.json({ data: user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/auth/users - Crea utente (solo admin)
+router.post("/users", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+      nome,
+      cognome,
+      role,
+      phone,
+      codiceFiscale,
+      partitaIva,
+      pec,
+      codiceDestinatario,
+      billingAddress,
+      shippingAddress,
+      useShippingAsBilling,
+      isActive,
+    } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email e password sono obbligatori" });
+    }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({ error: "Email già registrata" });
+    }
+
+    const user = new User({
+      email,
+      password,
+      nome,
+      cognome,
+      role: role || "customer",
+      phone,
+      codiceFiscale,
+      partitaIva,
+      pec,
+      codiceDestinatario,
+      billingAddress,
+      shippingAddress,
+      useShippingAsBilling,
+      isActive: isActive !== false,
+    });
+
+    await user.save();
+
+    res.status(201).json({
+      message: "Utente creato",
+      data: user,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/auth/users/:id - Aggiorna utente (solo admin)
+router.put("/users/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+      nome,
+      cognome,
+      role,
+      phone,
+      codiceFiscale,
+      partitaIva,
+      pec,
+      codiceDestinatario,
+      billingAddress,
+      shippingAddress,
+      useShippingAsBilling,
+      isActive,
+    } = req.body;
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: "Utente non trovato" });
+    }
+
+    // Se cambia email, verifica che non sia già in uso
+    if (email && email.toLowerCase() !== user.email) {
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      if (existingUser) {
+        return res.status(400).json({ error: "Email già in uso" });
+      }
+      user.email = email;
+    }
+
+    // Aggiorna password solo se fornita
+    if (password) {
+      user.password = password;
+    }
+
+    // Aggiorna altri campi
+    if (nome !== undefined) user.nome = nome;
+    if (cognome !== undefined) user.cognome = cognome;
+    if (role !== undefined) user.role = role;
+    if (phone !== undefined) user.phone = phone;
+    if (codiceFiscale !== undefined) user.codiceFiscale = codiceFiscale;
+    if (partitaIva !== undefined) user.partitaIva = partitaIva;
+    if (pec !== undefined) user.pec = pec;
+    if (codiceDestinatario !== undefined) user.codiceDestinatario = codiceDestinatario;
+    if (billingAddress !== undefined) user.billingAddress = billingAddress;
+    if (shippingAddress !== undefined) user.shippingAddress = shippingAddress;
+    if (useShippingAsBilling !== undefined) user.useShippingAsBilling = useShippingAsBilling;
+    if (isActive !== undefined) user.isActive = isActive;
+
+    await user.save();
+
+    res.json({
+      message: "Utente aggiornato",
+      data: user,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/auth/users/:id - Elimina utente (solo admin)
+router.delete("/users/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    // Non permettere di eliminare se stesso
+    if (req.params.id === req.user._id.toString()) {
+      return res.status(400).json({ error: "Non puoi eliminare il tuo account" });
+    }
+
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: "Utente non trovato" });
+    }
+
+    res.json({ message: "Utente eliminato" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
