@@ -215,6 +215,7 @@ router.put("/me", authMiddleware, async (req, res) => {
       billingAddress,
       shippingAddress,
       useShippingAsBilling,
+      themePreference,
     } = req.body;
 
     const updates = {};
@@ -228,6 +229,9 @@ router.put("/me", authMiddleware, async (req, res) => {
     if (billingAddress !== undefined) updates.billingAddress = billingAddress;
     if (shippingAddress !== undefined) updates.shippingAddress = shippingAddress;
     if (useShippingAsBilling !== undefined) updates.useShippingAsBilling = useShippingAsBilling;
+    if (themePreference !== undefined && ["light", "dark"].includes(themePreference)) {
+      updates.themePreference = themePreference;
+    }
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
