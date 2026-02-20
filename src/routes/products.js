@@ -78,6 +78,17 @@ router.get("/", async (req, res) => {
       ];
     }
 
+    // Filtri compatibilità moto
+    if (req.query.brand) {
+      query["compatibility.brand"] = req.query.brand;
+    }
+    if (req.query.model) {
+      query["compatibility.model"] = req.query.model;
+    }
+    if (req.query.year) {
+      query["compatibility.years"] = parseInt(req.query.year, 10);
+    }
+
     // Ordinamento
     let sort = { createdAt: -1 };
     if (req.query.sort === "price_asc") sort = { price: 1 };
