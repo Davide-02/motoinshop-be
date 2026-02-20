@@ -4,6 +4,7 @@ const path = require("path");
 const mongoose = require("mongoose");
 const motoRoutes = require("./routes/moto");
 const productRoutes = require("./routes/products");
+const authRoutes = require("./routes/auth");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -22,6 +23,9 @@ app.use("/api", motoRoutes);
 
 // API products (CRUD prodotti)
 app.use("/api/products", productRoutes);
+
+// API auth (autenticazione)
+app.use("/api/auth", authRoutes);
 
 // Health check
 app.get("/", (req, res) => {

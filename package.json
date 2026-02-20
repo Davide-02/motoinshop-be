@@ -8,16 +8,19 @@
     "seed": "node src/seed/seed.js",
     "seed-json": "node src/seed/import_motoFromJSON.js",
     "import": "node src/seed/import.js",
-    "download-images": "node src/seed/downloadImages.js"
+    "download-images": "node src/seed/downloadImages.js",
+    "create-admin": "node src/seed/createAdmin.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "csv-parser": "^3.2.0",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.1.0",
     "mongoose": "^9.2.1"
   },
