@@ -6,13 +6,15 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seed/seed.js",
-    "seed-json": "node src/seed/import_motoFromJSON.js"
+    "seed-json": "node src/seed/import_motoFromJSON.js",
+    "import": "node src/seed/import.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "csv-parser": "^3.2.0",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "mongodb": "^7.1.0",
