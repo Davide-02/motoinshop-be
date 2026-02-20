@@ -6,6 +6,7 @@ const motoRoutes = require("./routes/moto");
 const productRoutes = require("./routes/products");
 const authRoutes = require("./routes/auth");
 const orderRoutes = require("./routes/orders");
+const ticketRoutes = require("./routes/tickets");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -30,6 +31,16 @@ app.use("/api/auth", authRoutes);
 
 // API orders (ordini)
 app.use("/api/orders", orderRoutes);
+
+// API tickets (supporto)
+app.use("/api/tickets", ticketRoutes);
+
+// Serve file allegati ticket
+app.use("/api/tickets/files", express.static(path.join(__dirname, "../uploads/tickets"), {
+  maxAge: "1d",
+  etag: true,
+  lastModified: true,
+}));
 
 // Health check
 app.get("/", (req, res) => {
