@@ -1,6 +1,41 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 const Product = require("../models/Product");
+
+// Configurazione upload immagini prodotti
+const productImagesDir = path.join(__dirname, "../../uploads/products");
+if (!fs.existsSync(productImagesDir)) {
+  fs.mkdirSync(productImagesDir, { recursive: true });
+}
+
+const productImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, productImagesDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `product-${uniqueSuffix}${ext}`);
+  },
+});
+
+const productImageFilter = (req, file, cb) => {
+  const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Solo immagini (JPEG, PNG, GIF, WebP) sono permesse"), false);
+  }
+};
+
+const uploadProductImages = multer({
+  storage: productImageStorage,
+  fileFilter: productImageFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per immagine
+});
 
 // GET /api/products — lista prodotti con paginazione e filtri
 router.get("/", async (req, res) => {
@@ -177,6 +212,20 @@ router.put("/:id", async (req, res) => {
     res.json({ data: product });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// POST /api/products/upload-images — upload immagini (max 10)
+router.post("/upload-images", uploadProductImages.array("images", 10), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: "Nessuna immagine caricata" });
+    }
+
+    const imageUrls = req.files.map((file) => `/api/images/${file.filename}`);
+    res.json({ images: imageUrls });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
