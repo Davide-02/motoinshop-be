@@ -6,7 +6,10 @@ const fs = require("fs");
 const Product = require("../models/Product");
 
 // Configurazione upload immagini prodotti
-const productImagesDir = path.join(__dirname, "../../uploads/products");
+// Default: repo/uploads/products
+// In produzione (es. Render) imposta PRODUCT_IMAGES_DIR su un path persistente (es. /data/uploads/products).
+const productImagesDir =
+  process.env.PRODUCT_IMAGES_DIR || path.resolve(__dirname, "../../uploads/products");
 if (!fs.existsSync(productImagesDir)) {
   fs.mkdirSync(productImagesDir, { recursive: true });
 }
@@ -89,15 +92,38 @@ router.get("/", async (req, res) => {
       query["compatibility.years"] = parseInt(req.query.year, 10);
     }
 
-    // Ordinamento
+    // Ordinamento: copia per primi, poi secondo sort scelto
     let sort = { createdAt: -1 };
     if (req.query.sort === "price_asc") sort = { price: 1 };
     else if (req.query.sort === "price_desc") sort = { price: -1 };
     else if (req.query.sort === "name_asc") sort = { name: 1 };
     else if (req.query.sort === "name_desc") sort = { name: -1 };
 
+    const pipeline = [
+      { $match: query },
+      {
+        $addFields: {
+          _sortCopy: {
+            $cond: {
+              if: {
+                $or: [
+                  { $regexMatch: { input: { $ifNull: ["$name", ""] }, regex: " \\(copia\\)$" } },
+                  { $regexMatch: { input: { $ifNull: ["$sku", ""] }, regex: "-copia$" } },
+                ],
+              },
+              then: 1,
+              else: 0,
+            },
+          },
+        },
+      },
+      { $sort: { _sortCopy: -1, ...sort } },
+      { $skip: skip },
+      { $limit: perPage },
+      { $project: { _sortCopy: 0 } },
+    ];
     const [products, total] = await Promise.all([
-      Product.find(query).sort(sort).skip(skip).limit(perPage).lean(),
+      Product.aggregate(pipeline),
       Product.countDocuments(query),
     ]);
 

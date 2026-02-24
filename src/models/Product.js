@@ -10,7 +10,7 @@ const productSchema = new mongoose.Schema(
     price: Number,
     regularPrice: Number,
     salePrice: Number,
-    stock: Number,
+    stock: { type: Number, min: 0 },
     inStock: Boolean,
     categories: [String],
     tags: [String],
@@ -23,6 +23,7 @@ const productSchema = new mongoose.Schema(
       model: String,
       years: [Number],
       frame: String,
+      posizione: String, // es. "Anteriore", "Posteriore" - solo per categoria Impianto frenante
     }],
   },
   { timestamps: true }

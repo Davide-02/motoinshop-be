@@ -8,9 +8,15 @@ const productRoutes = require("./routes/products");
 const authRoutes = require("./routes/auth");
 const orderRoutes = require("./routes/orders");
 const ticketRoutes = require("./routes/tickets");
+const settingsRoutes = require("./routes/settings");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Directory immagini prodotti (default: repo/uploads/products).
+// In produzione (es. Render) imposta PRODUCT_IMAGES_DIR su un path persistente (es. /data/uploads/products).
+const PRODUCT_IMAGES_DIR =
+  process.env.PRODUCT_IMAGES_DIR || path.resolve(__dirname, "../uploads/products");
 
 // CORS configuration
 const corsOptions = {
@@ -24,7 +30,7 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 // Serve immagini statiche dalla cartella uploads
-app.use("/api/images", express.static(path.join(__dirname, "../uploads/products"), {
+app.use("/api/images", express.static(PRODUCT_IMAGES_DIR, {
   maxAge: "1y", // Cache per 1 anno
   etag: true,
   lastModified: true,
@@ -44,6 +50,9 @@ app.use("/api/orders", orderRoutes);
 
 // API tickets (supporto)
 app.use("/api/tickets", ticketRoutes);
+
+// API settings (manutenzione, ecc.)
+app.use("/api/settings", settingsRoutes);
 
 // Serve file allegati ticket
 app.use("/api/tickets/files", express.static(path.join(__dirname, "../uploads/tickets"), {
