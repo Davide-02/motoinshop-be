@@ -10,6 +10,8 @@ const productSchema = new mongoose.Schema(
     price: Number,
     regularPrice: Number,
     salePrice: Number,
+    mechanicalPrice: Number,   // prezzo meccanico
+    wholesalePrice: Number,   // prezzo ingrosso
     stock: { type: Number, min: 0 },
     inStock: Boolean,
     categories: [String],
