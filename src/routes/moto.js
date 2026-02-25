@@ -2,6 +2,33 @@ const express = require("express");
 const router = express.Router();
 const Moto = require("../models/Moto");
 
+function escapeRegex(s) {
+  return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function regexCaseInsensitive(val) {
+  if (!val || typeof val !== "string") return null;
+  const trimmed = val.trim();
+  if (!trimmed) return null;
+  return new RegExp("^" + escapeRegex(trimmed) + "$", "i");
+}
+// Normalizza per confronto: minuscolo, senza spazi (evita duplicati "ad250" vs "ad 250")
+function normalizeForMatch(s) {
+  return String(s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+}
+function normalizedKey(marca, modello) {
+  return normalizeForMatch(marca) + "|" + normalizeForMatch(modello);
+}
+// Regex per ricerca: term con spazi opzionali ovunque (es. "s1000rr" trova "s 1000 rr")
+function searchRegexWithOptionalSpaces(term) {
+  const s = String(term || "").trim();
+  if (!s) return null;
+  const pattern = s.split("").map((c) => escapeRegex(c)).join("\\s*");
+  return new RegExp(pattern, "i");
+}
+
 // 1️⃣ GET /api/marche — tutte le marche disponibili
 router.get("/marche", async (req, res) => {
   try {
@@ -16,7 +43,8 @@ router.get("/marche", async (req, res) => {
 router.get("/cilindrate", async (req, res) => {
   try {
     const query = {};
-    if (req.query.marca) query.marca = req.query.marca;
+    const mar = regexCaseInsensitive(req.query.marca);
+    if (mar) query.marca = mar;
 
     const cilindrate = await Moto.distinct("cilindrata", query);
     res.json({ data: cilindrate });
@@ -29,7 +57,8 @@ router.get("/cilindrate", async (req, res) => {
 router.get("/modelli", async (req, res) => {
   try {
     const query = {};
-    if (req.query.marca) query.marca = req.query.marca;
+    const mar = regexCaseInsensitive(req.query.marca);
+    if (mar) query.marca = mar;
     if (req.query.cilindrata) query.cilindrata = Number(req.query.cilindrata);
 
     const modelli = await Moto.distinct("modello", query);
@@ -43,11 +72,14 @@ router.get("/modelli", async (req, res) => {
 router.get("/anni", async (req, res) => {
   try {
     const { marca, cilindrata, modello } = req.query;
+    const query = {};
+    const mar = regexCaseInsensitive(marca);
+    const mod = regexCaseInsensitive(modello);
+    if (mar) query.marca = mar;
+    if (mod) query.modello = mod;
+    if (cilindrata != null && cilindrata !== "") query.cilindrata = Number(cilindrata);
 
-    const moto = await Moto.findOne(
-      { marca, cilindrata: Number(cilindrata), modello },
-      { anni: 1, _id: 0 }
-    );
+    const moto = await Moto.findOne(query, { anni: 1, _id: 0 });
     res.json({ data: moto ? moto.anni : [] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -58,9 +90,11 @@ router.get("/anni", async (req, res) => {
 router.get("/filtri", async (req, res) => {
   try {
     const query = {};
-    if (req.query.marca) query.marca = req.query.marca;
-    if (req.query.cilindrata) query.cilindrata = Number(req.query.cilindrata);
-    if (req.query.modello) query.modello = req.query.modello;
+    const mar = regexCaseInsensitive(req.query.marca);
+    const mod = regexCaseInsensitive(req.query.modello);
+    if (mar) query.marca = mar;
+    if (mod) query.modello = mod;
+    if (req.query.cilindrata != null && req.query.cilindrata !== "") query.cilindrata = Number(req.query.cilindrata);
 
     const data = await Moto.find(query);
 
@@ -104,8 +138,18 @@ router.get("/moto", async (req, res) => {
 
     const query = {};
     if (req.query.marca) query.marca = req.query.marca;
+    if (req.query.categoria) query.categoria = req.query.categoria;
     if (req.query.search) {
-      query.modello = { $regex: req.query.search, $options: "i" };
+      const q = req.query.search.trim();
+      if (q) {
+        const searchRe = searchRegexWithOptionalSpaces(q);
+        if (searchRe) {
+          query.$or = [
+            { marca: searchRe },
+            { modello: searchRe },
+          ];
+        }
+      }
     }
 
     const [data, total] = await Promise.all([
@@ -162,6 +206,65 @@ router.post("/moto", async (req, res) => {
     res.status(201).json({ data: moto });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// 9b POST /api/moto/check-missing — quali (marca, modello) non esistono in DB (case-insensitive + ignora spazi: "ad250" = "ad 250")
+router.post("/moto/check-missing", async (req, res) => {
+  try {
+    const items = req.body.items;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.json({ missing: [] });
+    }
+    const allPairs = await Moto.find({}, { marca: 1, modello: 1 }).lean();
+    const existingKeys = new Set(allPairs.map((d) => normalizedKey(d.marca, d.modello)));
+    const missing = [];
+    for (const item of items) {
+      const marca = item.marca && String(item.marca).trim();
+      const modello = item.modello && String(item.modello).trim();
+      if (!marca || !modello) continue;
+      const key = normalizedKey(marca, modello);
+      if (existingKeys.has(key)) continue;
+      missing.push({ marca, modello });
+    }
+    res.json({ missing });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 9c POST /api/moto/bulk-create — crea in blocco moto mancanti (solo se non esistono; confronto normalizzato come check-missing)
+router.post("/moto/bulk-create", async (req, res) => {
+  try {
+    const items = req.body.items;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.json({ created: 0 });
+    }
+    const allPairs = await Moto.find({}, { marca: 1, modello: 1 }).lean();
+    const existingKeys = new Set(allPairs.map((d) => normalizedKey(d.marca, d.modello)));
+    let created = 0;
+    for (const item of items) {
+      const marca = item.marca && String(item.marca).trim();
+      const modello = item.modello && String(item.modello).trim();
+      if (!marca || !modello) continue;
+      const key = normalizedKey(marca, modello);
+      if (existingKeys.has(key)) continue;
+      const anni = Array.isArray(item.anni) ? item.anni : [];
+      const moto = new Moto({
+        marca,
+        modello,
+        cilindrata: 0,
+        anni,
+        categoria: "Unknown",
+        paese: "Unknown",
+      });
+      await moto.save();
+      existingKeys.add(key);
+      created++;
+    }
+    res.json({ created });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
