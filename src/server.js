@@ -27,7 +27,8 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-app.use(express.json());
+// Limite body 50MB per import CSV moto (40k+ modelli)
+app.use(express.json({ limit: "50mb" }));
 
 // Serve immagini statiche dalla cartella uploads
 app.use("/api/images", express.static(PRODUCT_IMAGES_DIR, {
@@ -70,7 +71,9 @@ async function start() {
   try {
     await mongoose.connect(process.env.MONGO_URI, { dbName: "motoin" });
     console.log("MongoDB connected");
-    app.listen(PORT, () => console.log(`Server on http://localhost:${PORT}`));
+    const server = app.listen(PORT, () => console.log(`Server on http://localhost:${PORT}`));
+    // Nessun timeout per import/check-missing con 40k+ modelli
+    server.timeout = 0;
   } catch (err) {
     console.error(err);
     process.exit(1);

@@ -268,6 +268,48 @@ router.post("/moto/bulk-create", async (req, res) => {
   }
 });
 
+// 9d POST /api/moto/import — import da CSV/array (evita duplicati: confronto normalizzato marca+modello)
+router.post("/moto/import", async (req, res) => {
+  try {
+    const items = req.body.items;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.json({ created: 0, skipped: 0 });
+    }
+    const allPairs = await Moto.find({}, { marca: 1, modello: 1 }).lean();
+    const existingKeys = new Set(allPairs.map((d) => normalizedKey(d.marca, d.modello)));
+    let created = 0;
+    let skipped = 0;
+    for (const item of items) {
+      const marca = item.marca && String(item.marca).trim();
+      const modello = item.modello && String(item.modello).trim();
+      if (!marca || !modello) continue;
+      const key = normalizedKey(marca, modello);
+      if (existingKeys.has(key)) {
+        skipped++;
+        continue;
+      }
+      const cilindrata = Number(item.cilindrata) || 0;
+      const anni = Array.isArray(item.anni) ? item.anni : [];
+      const categoria = (item.categoria && String(item.categoria).trim()) || "Unknown";
+      const paese = (item.paese && String(item.paese).trim()) || "Unknown";
+      const moto = new Moto({
+        marca,
+        modello,
+        cilindrata,
+        anni,
+        categoria,
+        paese,
+      });
+      await moto.save();
+      existingKeys.add(key);
+      created++;
+    }
+    res.json({ created, skipped });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 🔟 PUT /api/moto/:id — aggiorna moto
 router.put("/moto/:id", async (req, res) => {
   try {
