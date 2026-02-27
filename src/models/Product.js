@@ -23,6 +23,7 @@ const productSchema = new mongoose.Schema(
     compatibility: [{
       brand: String,
       model: String,
+      cilindrata: Number, // cc, tra modello e anni
       years: [Number],
       frame: String,
       posizione: String, // es. "Anteriore", "Posteriore" - solo per categoria Impianto frenante
