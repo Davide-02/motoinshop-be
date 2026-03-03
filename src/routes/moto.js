@@ -11,12 +11,23 @@ function regexCaseInsensitive(val) {
   if (!trimmed) return null;
   return new RegExp("^" + escapeRegex(trimmed) + "$", "i");
 }
-// Normalizza per confronto: minuscolo, senza spazi (evita duplicati "ad250" vs "ad 250")
+// Normalizza per confronto:
+// - minuscolo
+// - tratta - _ / come spazi
+// - rimuove spazi multipli
+// - ordina le parole alfabeticamente
+// In questo modo "cbr 600", "600 cbr" e "cbr-600" vengono considerati uguali.
 function normalizeForMatch(s) {
-  return String(s || "")
-    .trim()
+  const trimmed = String(s || "")
     .toLowerCase()
-    .replace(/\s+/g, "");
+    .replace(/[-_/]+/g, " ")
+    .trim();
+  if (!trimmed) return "";
+  const tokens = trimmed
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort();
+  return tokens.join("");
 }
 function normalizedKey(marca, modello) {
   return normalizeForMatch(marca) + "|" + normalizeForMatch(modello);
@@ -211,7 +222,31 @@ router.post("/moto", async (req, res) => {
   }
 });
 
-// 9b POST /api/moto/check-missing — quali (marca, modello) non esistono in DB (case-insensitive + ignora spazi: "ad250" = "ad 250")
+// Helper per fuzzy-match del modello: confronta le parole ignorando ordine,
+// trattando - _ / come spazi e richiedendo che la maggior parte delle parole
+// del modello "input" siano presenti in quello esistente.
+function modelTokens(str) {
+  return String(str || "")
+    .toLowerCase()
+    .replace(/[-_/]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+function isFuzzyModelMatch(existingModel, inputModel) {
+  const inTokens = modelTokens(inputModel);
+  if (inTokens.length === 0) return false;
+  const exTokens = new Set(modelTokens(existingModel));
+  let matched = 0;
+  for (const t of inTokens) {
+    if (exTokens.has(t)) matched++;
+  }
+  const ratio = matched / inTokens.length;
+  // Consideriamo "uguali" se tutte (o quasi tutte) le parole dell'input
+  // sono contenute nel modello esistente (es. "desmosedici" ⊆ "desmosedici rr e3").
+  return matched > 0 && (ratio >= 0.8 || inTokens.length === 1);
+}
+
+// 9b POST /api/moto/check-missing — quali (marca, modello) non esistono in DB
 router.post("/moto/check-missing", async (req, res) => {
   try {
     const items = req.body.items;
@@ -220,13 +255,27 @@ router.post("/moto/check-missing", async (req, res) => {
     }
     const allPairs = await Moto.find({}, { marca: 1, modello: 1 }).lean();
     const existingKeys = new Set(allPairs.map((d) => normalizedKey(d.marca, d.modello)));
+    // Raggruppa per marca normalizzata per rendere il fuzzy-match più veloce
+    const byMarca = new Map();
+    for (const d of allPairs) {
+      const key = normalizeForMatch(d.marca);
+      if (!byMarca.has(key)) byMarca.set(key, []);
+      byMarca.get(key).push(d.modello || "");
+    }
     const missing = [];
     for (const item of items) {
       const marca = item.marca && String(item.marca).trim();
       const modello = item.modello && String(item.modello).trim();
       if (!marca || !modello) continue;
       const key = normalizedKey(marca, modello);
+      // 1) Match "esatto" con normalizzazione forte (ordine parole, spazi, ecc.)
       if (existingKeys.has(key)) continue;
+      // 2) Fuzzy-match per stessa marca: se esiste almeno un modello
+      // che contiene (quasi) tutte le parole del modello inserito, NON è mancante.
+      const marcaNorm = normalizeForMatch(marca);
+      const modelsForBrand = byMarca.get(marcaNorm) || [];
+      const fuzzyFound = modelsForBrand.some((m) => isFuzzyModelMatch(m, modello));
+      if (fuzzyFound) continue;
       missing.push({ marca, modello });
     }
     res.json({ missing });

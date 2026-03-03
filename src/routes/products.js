@@ -5,6 +5,17 @@ const path = require("path");
 const fs = require("fs");
 const Product = require("../models/Product");
 
+// Helper per confronti case-insensitive su stringhe
+function escapeRegex(s) {
+  return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function regexCaseInsensitive(val) {
+  if (!val || typeof val !== "string") return null;
+  const trimmed = val.trim();
+  if (!trimmed) return null;
+  return new RegExp("^" + escapeRegex(trimmed) + "$", "i");
+}
+
 // Configurazione upload immagini prodotti
 // Default: repo/uploads/products
 // In produzione (es. Render) imposta PRODUCT_IMAGES_DIR su un path persistente (es. /data/uploads/products).
@@ -82,17 +93,34 @@ router.get("/", async (req, res) => {
     }
 
     // Filtri compatibilità moto
-    if (req.query.brand) {
-      query["compatibility.brand"] = req.query.brand;
-    }
-    if (req.query.cilindrata != null && req.query.cilindrata !== "") {
-      query["compatibility.cilindrata"] = parseInt(req.query.cilindrata, 10);
-    }
-    if (req.query.model) {
-      query["compatibility.model"] = req.query.model;
-    }
-    if (req.query.year) {
-      query["compatibility.years"] = parseInt(req.query.year, 10);
+    if (req.query.brand || req.query.cilindrata || req.query.model || req.query.year) {
+      const compatMatch = {};
+      const brandRegex = regexCaseInsensitive(req.query.brand);
+      if (brandRegex) {
+        compatMatch.brand = brandRegex;
+      }
+      // Regola: se l'utente ha selezionato anche il modello,
+      // la cilindrata diventa "soft" e NON viene usata per escludere risultati.
+      // Quindi applichiamo il filtro cilindrata solo se NON è stato passato un modello.
+      if (!req.query.model && req.query.cilindrata != null && req.query.cilindrata !== "") {
+        const cilNum = parseInt(req.query.cilindrata, 10);
+        if (!Number.isNaN(cilNum)) {
+          compatMatch.cilindrata = cilNum;
+        }
+      }
+      const modelRegex = regexCaseInsensitive(req.query.model);
+      if (modelRegex) {
+        compatMatch.model = modelRegex;
+      }
+      if (req.query.year) {
+        const yearNum = parseInt(req.query.year, 10);
+        if (!Number.isNaN(yearNum)) {
+          compatMatch.years = yearNum;
+        }
+      }
+      if (Object.keys(compatMatch).length > 0) {
+        query.compatibility = { $elemMatch: compatMatch };
+      }
     }
 
     // Ordinamento: copia per primi, poi secondo sort scelto
