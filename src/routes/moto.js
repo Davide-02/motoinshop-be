@@ -138,6 +138,8 @@ router.get("/moto", async (req, res) => {
 
     const query = {};
     if (req.query.marca) query.marca = req.query.marca;
+    if (req.query.cilindrata != null && req.query.cilindrata !== "")
+      query.cilindrata = Number(req.query.cilindrata);
     if (req.query.categoria) query.categoria = req.query.categoria;
     if (req.query.search) {
       const q = req.query.search.trim();

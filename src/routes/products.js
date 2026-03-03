@@ -85,6 +85,9 @@ router.get("/", async (req, res) => {
     if (req.query.brand) {
       query["compatibility.brand"] = req.query.brand;
     }
+    if (req.query.cilindrata != null && req.query.cilindrata !== "") {
+      query["compatibility.cilindrata"] = parseInt(req.query.cilindrata, 10);
+    }
     if (req.query.model) {
       query["compatibility.model"] = req.query.model;
     }

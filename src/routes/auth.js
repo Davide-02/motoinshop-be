@@ -58,7 +58,7 @@ const authMiddleware = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(decoded.userId).select("-password").lean();
 
     if (!user || !user.isActive) {
       return res.status(401).json({ error: "Utente non trovato o disattivato" });
@@ -198,7 +198,12 @@ router.post("/logout", authMiddleware, async (req, res) => {
 
 // GET /api/auth/me - Utente corrente
 router.get("/me", authMiddleware, async (req, res) => {
-  res.json({ user: req.user });
+  try {
+    res.json({ user: req.user });
+  } catch (err) {
+    console.error("GET /api/auth/me error:", err);
+    res.status(500).json({ error: err.message || "Errore server" });
+  }
 });
 
 // PUT /api/auth/me - Aggiorna profilo
