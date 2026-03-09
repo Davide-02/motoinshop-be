@@ -361,6 +361,79 @@ router.post("/moto/import", async (req, res) => {
   }
 });
 
+// 9e POST /api/moto/replace-brand — sostituisce tutti i modelli di una marca
+router.post("/moto/replace-brand", async (req, res) => {
+  try {
+    const brand = req.body.brand && String(req.body.brand).trim();
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+
+    if (!brand) {
+      return res.status(400).json({ error: "Marca obbligatoria" });
+    }
+
+    if (items.length === 0) {
+      return res.status(400).json({ error: "Nessun modello da importare" });
+    }
+
+    const mergedMap = new Map();
+    for (const item of items) {
+      const marca = item.marca && String(item.marca).trim();
+      const modello = item.modello && String(item.modello).trim();
+      if (!marca || !modello) continue;
+
+      if (normalizeForMatch(marca) !== normalizeForMatch(brand)) {
+        return res.status(400).json({ error: "Tutti i modelli devono appartenere alla marca selezionata" });
+      }
+
+      const key = normalizedKey(marca, modello);
+      const anni = Array.isArray(item.anni)
+        ? [...new Set(item.anni.map((year) => Number(year)).filter((year) => !Number.isNaN(year)))].sort((a, b) => a - b)
+        : [];
+      const cilindrata = Number(item.cilindrata) || 0;
+      const categoria = (item.categoria && String(item.categoria).trim()) || "Unknown";
+      const paese = (item.paese && String(item.paese).trim()) || "Unknown";
+
+      if (mergedMap.has(key)) {
+        const existing = mergedMap.get(key);
+        mergedMap.set(key, {
+          ...existing,
+          anni: [...new Set([...(existing.anni || []), ...anni])].sort((a, b) => a - b),
+          cilindrata,
+          categoria: existing.categoria || categoria,
+          paese: existing.paese || paese,
+        });
+      } else {
+        mergedMap.set(key, {
+          marca,
+          modello,
+          cilindrata,
+          anni,
+          categoria,
+          paese,
+        });
+      }
+    }
+
+    const docs = Array.from(mergedMap.values());
+    if (docs.length === 0) {
+      return res.status(400).json({ error: "Nessun modello valido da importare" });
+    }
+
+    const deleteResult = await Moto.deleteMany({
+      marca: regexCaseInsensitive(brand),
+    });
+
+    await Moto.insertMany(docs);
+
+    res.json({
+      deleted: deleteResult.deletedCount || 0,
+      created: docs.length,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 🔟 PUT /api/moto/:id — aggiorna moto
 router.put("/moto/:id", async (req, res) => {
   try {
