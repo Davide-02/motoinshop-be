@@ -182,6 +182,32 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/orders/:id/mark-paid - Webhook Stripe: segna ordine come pagato (no auth utente, solo segreto)
+const ORDER_WEBHOOK_SECRET = process.env.ORDER_WEBHOOK_SECRET;
+router.post("/:id/mark-paid", async (req, res) => {
+  try {
+    if (!ORDER_WEBHOOK_SECRET) {
+      return res.status(503).json({ error: "Webhook ordini non configurato" });
+    }
+    const secret = req.headers["x-webhook-secret"] || req.headers.authorization?.replace("Bearer ", "");
+    if (secret !== ORDER_WEBHOOK_SECRET) {
+      return res.status(401).json({ error: "Segreto webhook non valido" });
+    }
+    const { paymentStatus = "paid", paymentMethod = "Stripe" } = req.body;
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      { paymentStatus, paymentMethod },
+      { new: true }
+    );
+    if (!order) {
+      return res.status(404).json({ error: "Ordine non trovato" });
+    }
+    res.json({ message: "Ordine aggiornato", data: order });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // PUT /api/orders/:id - Aggiorna ordine (solo admin)
 router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
