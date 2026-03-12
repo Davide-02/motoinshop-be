@@ -42,8 +42,8 @@ const uploadAvatar = multer({
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || "motoin_secret_key_change_in_production";
-// Timeout di sessione: 48 ore
-const JWT_EXPIRES_IN = "48h";
+// Timeout di sessione: 24 ore
+const JWT_EXPIRES_IN = "24h";
 
 // Blacklist per token invalidati (in memoria - in produzione usare Redis)
 const tokenBlacklist = new Set();
