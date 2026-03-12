@@ -5,6 +5,8 @@ const path = require("path");
 const fs = require("fs");
 const router = express.Router();
 const User = require("../models/User");
+const Order = require("../models/Order");
+const Ticket = require("../models/Ticket");
 
 // Configurazione upload avatar
 const avatarDir = path.join(__dirname, "../../uploads/avatars");
@@ -247,6 +249,64 @@ router.put("/me", authMiddleware, async (req, res) => {
     res.json({ user });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// DELETE /api/auth/me - Elimina definitivamente l'account utente (richiesta dall'utente stesso)
+router.delete("/me", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Anonimizza ordini collegati all'utente (manteniamo solo dati necessari non direttamente identificativi)
+    await Order.updateMany(
+      { userId },
+      {
+        $set: {
+          userId: null,
+          customerPhone: null,
+        },
+      }
+    );
+
+    // Aggiorna ticket collegati all'utente
+    const tickets = await Ticket.find({ userId });
+    for (const ticket of tickets) {
+      ticket.userId = null;
+      ticket.userEmail = null;
+      ticket.userName = "Utente eliminato";
+      ticket.unreadByUser = false;
+
+      ticket.messages.forEach((msg) => {
+        if (msg.senderId && msg.senderId.toString() === userId.toString()) {
+          msg.senderId = null;
+          msg.senderName = "Utente eliminato";
+        }
+      });
+
+      await ticket.save();
+    }
+
+    // Elimina avatar se presente
+    const user = await User.findById(userId);
+    if (user && user.avatar) {
+      const avatarPath = path.join(avatarDir, path.basename(user.avatar));
+      if (fs.existsSync(avatarPath)) {
+        fs.unlinkSync(avatarPath);
+      }
+    }
+
+    // Elimina definitivamente l'utente
+    await User.findByIdAndDelete(userId);
+
+    // Invalida il token corrente
+    if (req.token) {
+      tokenBlacklist.add(req.token);
+    }
+
+    res.json({ message: "Account eliminato definitivamente" });
+  } catch (err) {
+    console.error("DELETE /api/auth/me error:", err);
+    res.status(500).json({ error: err.message || "Errore server" });
   }
 });
 
