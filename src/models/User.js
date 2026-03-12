@@ -95,6 +95,9 @@ const userSchema = new mongoose.Schema(
       enum: ["light", "dark"],
       default: "light",
     },
+    deletedAt: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );
