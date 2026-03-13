@@ -230,6 +230,23 @@ router.get("/stats", async (req, res) => {
   }
 });
 
+// GET /api/products/sku/:sku — singolo prodotto per SKU/codice a barre (banco)
+router.get("/sku/:sku", async (req, res) => {
+  try {
+    const sku = (req.params.sku || "").trim();
+    if (!sku) {
+      return res.status(400).json({ error: "SKU mancante" });
+    }
+    const product = await Product.findOne({ sku }).lean();
+    if (!product) {
+      return res.status(404).json({ error: "Prodotto non trovato" });
+    }
+    res.json({ data: product });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/products/:id — singolo prodotto
 router.get("/:id", async (req, res) => {
   try {
