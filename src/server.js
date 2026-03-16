@@ -9,6 +9,8 @@ const authRoutes = require("./routes/auth");
 const orderRoutes = require("./routes/orders");
 const ticketRoutes = require("./routes/tickets");
 const settingsRoutes = require("./routes/settings");
+const catalogRoutes = require("./routes/catalog");
+const supplierRoutes = require("./routes/suppliers");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -54,6 +56,12 @@ app.use("/api/tickets", ticketRoutes);
 
 // API settings (manutenzione, ecc.)
 app.use("/api/settings", settingsRoutes);
+
+// API catalog (categorie, sottocategorie, unità)
+app.use("/api/catalog", catalogRoutes);
+
+// API fornitori
+app.use("/api/suppliers", supplierRoutes);
 
 // Serve file allegati ticket
 app.use("/api/tickets/files", express.static(path.join(__dirname, "../uploads/tickets"), {
