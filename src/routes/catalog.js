@@ -59,7 +59,7 @@ router.delete("/categories/:id", async (req, res) => {
 // GET /api/catalog/subcategories
 router.get("/subcategories", async (req, res) => {
   try {
-    const list = await Subcategory.find().sort({ name: 1 }).lean();
+    const list = await Subcategory.find().sort({ name: 1 }).populate("category", "name").lean();
     res.json({ data: list });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -71,9 +71,18 @@ router.post("/subcategories", async (req, res) => {
   try {
     const name = (req.body.name || "").trim();
     if (!name) return res.status(400).json({ error: "Nome obbligatorio" });
-    const existing = await Subcategory.findOne({ name: { $regex: new RegExp(`^${name.replace(/[.*+?^${()|[\]\\]/g, "\\$&")}$`, "i") } });
+    const existing = await Subcategory.findOne({
+      name: { $regex: new RegExp(`^${name.replace(/[.*+?^${()|[\]\\]/g, "\\$&")}$`, "i") },
+    });
     if (existing) return res.status(400).json({ error: "Sottocategoria già presente" });
-    const doc = await Subcategory.create({ name });
+
+    const categoryId = req.body.categoryId || null;
+    const created = await Subcategory.create({
+      name,
+      category: categoryId || undefined,
+    });
+    const doc = await Subcategory.findById(created._id).populate("category", "name").lean();
+
     res.status(201).json({ data: doc });
   } catch (err) {
     if (err.code === 11000) return res.status(400).json({ error: "Sottocategoria già presente" });
@@ -86,7 +95,19 @@ router.put("/subcategories/:id", async (req, res) => {
   try {
     const name = (req.body.name || "").trim();
     if (!name) return res.status(400).json({ error: "Nome obbligatorio" });
-    const doc = await Subcategory.findByIdAndUpdate(req.params.id, { name }, { new: true, runValidators: true }).lean();
+
+    const categoryId = Object.prototype.hasOwnProperty.call(req.body, "categoryId")
+      ? req.body.categoryId || null
+      : undefined;
+
+    const update = { name };
+    if (categoryId !== undefined) {
+      update.category = categoryId;
+    }
+
+    await Subcategory.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
+    const doc = await Subcategory.findById(req.params.id).populate("category", "name").lean();
+
     if (!doc) return res.status(404).json({ error: "Sottocategoria non trovata" });
     res.json({ data: doc });
   } catch (err) {

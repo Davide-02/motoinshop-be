@@ -7,7 +7,8 @@ const productSchema = new mongoose.Schema(
     code: String,           // Codice
     barcode: String,        // Barcode
     name: String,
-    subcategory: String,    // Sottocategoria
+    subcategory: String,    // Sottocategoria principale (retrocompatibilità)
+    subcategories: [String], // Sottocategorie multiple
     shortDescription: String,
     description: String,
     price: Number,
