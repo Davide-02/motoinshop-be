@@ -16,6 +16,9 @@ const productSchema = new mongoose.Schema(
     salePrice: Number,
     mechanicalPrice: Number,   // prezzo meccanico
     wholesalePrice: Number,   // prezzo ingrosso
+    mechanicalMarkupPct: Number, // ricarico % prezzo meccanico
+    publicMarkupPct: Number,     // ricarico % prezzo pubblico
+    webMarkupPct: Number,        // ricarico % prezzo web
     stock: { type: Number, min: 0 },
     inStock: Boolean,
     categories: [String],

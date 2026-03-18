@@ -70,6 +70,20 @@ router.get("/", async (req, res) => {
     if (req.query.category) {
       query.categories = { $regex: req.query.category, $options: "i" };
     }
+
+    // Filtro per sottocategoria (su campo legacy `subcategory` o array `subcategories`)
+    if (req.query.subcategory) {
+      const sub = String(req.query.subcategory || "").trim();
+      if (sub) {
+        query.$and = query.$and || [];
+        query.$and.push({
+          $or: [
+            { subcategory: { $regex: sub, $options: "i" } },
+            { subcategories: { $regex: sub, $options: "i" } },
+          ],
+        });
+      }
+    }
     
     // Filtro per disponibilità
     if (req.query.in_stock === "true") {

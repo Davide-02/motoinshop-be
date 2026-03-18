@@ -11,6 +11,7 @@ const ticketRoutes = require("./routes/tickets");
 const settingsRoutes = require("./routes/settings");
 const catalogRoutes = require("./routes/catalog");
 const supplierRoutes = require("./routes/suppliers");
+const warehouseRoutes = require("./routes/warehouses");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -62,6 +63,9 @@ app.use("/api/catalog", catalogRoutes);
 
 // API fornitori
 app.use("/api/suppliers", supplierRoutes);
+
+// API magazzini (anagrafica)
+app.use("/api/warehouses", warehouseRoutes);
 
 // Serve file allegati ticket
 app.use("/api/tickets/files", express.static(path.join(__dirname, "../uploads/tickets"), {
