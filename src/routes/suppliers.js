@@ -27,5 +27,16 @@ router.post("/", async (req, res) => {
   }
 });
 
+// DELETE /api/suppliers/:id — elimina fornitore
+router.delete("/:id", async (req, res) => {
+  try {
+    const item = await Supplier.findByIdAndDelete(req.params.id);
+    if (!item) return res.status(404).json({ error: "Fornitore non trovato" });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 module.exports = router;
 
