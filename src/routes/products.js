@@ -103,6 +103,8 @@ router.get("/", async (req, res) => {
         { name: { $regex: req.query.search, $options: "i" } },
         { shortDescription: { $regex: req.query.search, $options: "i" } },
         { sku: { $regex: req.query.search, $options: "i" } },
+        { barcode: { $regex: req.query.search, $options: "i" } },
+        { code: { $regex: req.query.search, $options: "i" } },
       ];
     }
 
@@ -244,14 +246,16 @@ router.get("/stats", async (req, res) => {
   }
 });
 
-// GET /api/products/sku/:sku — singolo prodotto per SKU/codice a barre (banco)
+// GET /api/products/sku/:sku — singolo prodotto per SKU/barcode/codice (banco)
 router.get("/sku/:sku", async (req, res) => {
   try {
     const sku = (req.params.sku || "").trim();
     if (!sku) {
       return res.status(400).json({ error: "SKU mancante" });
     }
-    const product = await Product.findOne({ sku }).lean();
+    const product = await Product.findOne({
+      $or: [{ sku }, { barcode: sku }, { code: sku }],
+    }).lean();
     if (!product) {
       return res.status(404).json({ error: "Prodotto non trovato" });
     }
