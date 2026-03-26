@@ -12,6 +12,7 @@ const settingsRoutes = require("./routes/settings");
 const catalogRoutes = require("./routes/catalog");
 const supplierRoutes = require("./routes/suppliers");
 const warehouseRoutes = require("./routes/warehouses");
+const verticalItemsRoutes = require("./routes/verticalItems");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -45,6 +46,9 @@ app.use("/api", motoRoutes);
 
 // API products (CRUD prodotti)
 app.use("/api/products", productRoutes);
+
+// API vertical items (unified CRUD by settore)
+app.use("/api/vertical", verticalItemsRoutes);
 
 // API auth (autenticazione)
 app.use("/api/auth", authRoutes);
