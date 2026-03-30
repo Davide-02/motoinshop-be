@@ -13,6 +13,7 @@ const catalogRoutes = require("./routes/catalog");
 const supplierRoutes = require("./routes/suppliers");
 const warehouseRoutes = require("./routes/warehouses");
 const verticalItemsRoutes = require("./routes/verticalItems");
+const posRoutes = require("./routes/pos");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -70,6 +71,9 @@ app.use("/api/suppliers", supplierRoutes);
 
 // API magazzini (anagrafica)
 app.use("/api/warehouses", warehouseRoutes);
+
+// API POS / Banco
+app.use("/api/pos", posRoutes);
 
 // Serve file allegati ticket
 app.use("/api/tickets/files", express.static(path.join(__dirname, "../uploads/tickets"), {
